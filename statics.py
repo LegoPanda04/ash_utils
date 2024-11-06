@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 class Vector:
     def __init__(self, comps, magnitude, unit_vector, angle_cosines, coords = np.zeros(3)):
@@ -133,6 +134,26 @@ class Vector:
         """
         return self.input_nparray(np.cross(np.array([x, y, z]), self.comps))
 
+    def plot_vector(self, col='blue'):
+        """
+        Plots a projection of the vector in the xy plane.
+        :param col: color, default 'blue'
+        :return: pyplot arrow
+        """
+        plt.arrow(self.coords[0], self.coords[1], self.comps[0], self.comps[1], head_width=0.1, head_length=0.1, color=col, length_includes_head=True)
+
+    def plot_coords_vector(self, x=0, y=0, z=0, col='blue'):
+        """
+        Identical to self.plot_vector, but it allows for updating coords
+        :param x: x coordinate, default 0
+        :param y: y coordinate, default 0
+        :param z: z coordinate, default 0
+        :param col: color, default 'blue'
+        :return: pyplot arrow
+        """
+        self.coords = np.array([x, y, z])
+        self.plot_vector(col)
+
 class Point:
     def __init__(self, x, y, z):
         self.x = x
@@ -153,16 +174,3 @@ def line(a,b):
     :return: vector from a to b
     """
     return b - a
-
-def solve_system(a,b):
-    """
-    Solves a system of equations.
-    :param a: NxN matrix of coefficients
-    :param b: 1xN matrix of equalities
-    :return: 1xN matrix of solutions
-    """
-    solution = np.matmul(np.linalg.inv(a),b)
-    solution = solution.reshape(1, a.shape[1])[0]
-    print(f'Solution: {np.round(solution, 2)}')
-    print(' ')
-    return solution
