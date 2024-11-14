@@ -200,7 +200,7 @@ class TrussPoint:
         self.resultants = np.array([0, 0])
 
         # Class variable that keeps track of which rows in the solving matrix belong to it.
-        self.i = None
+        self.row_index = None
 
     def plot_horizontal(self, ax, maxload, magnitude, color):
         """
@@ -282,17 +282,17 @@ class TrussPoint:
 
 
 class TrussMember:
-    def __init__(self, a, b):
+    def __init__(self, from_point, to_point):
         """
         Member class to store relationships between points.
         If your labels are coming out upside down, try flipping the order you input a and b.
-        :param a: point a.
-        :param b: point b.
+        :param from_point: point a.
+        :param to_point: point b.
         """
-        self.a = a
-        self.b = b
-        self.length = np.linalg.norm(self.b.coords - self.a.coords)
-        self.components = (self.b.coords - self.a.coords) / self.length
+        self.from_point = from_point
+        self.to_point = to_point
+        self.length = np.linalg.norm(self.to_point.coords - self.from_point.coords)
+        self.components = (self.to_point.coords - self.from_point.coords) / self.length
 
         # Class variable to store the tension in the member once calculated.
         self.tension = None
@@ -305,16 +305,16 @@ class TrussMember:
         :param is_solved: boolean of whether to do the solved or unsolved version.
         """
         # Makes the x and y lists
-        x_values = [self.a.coords[0], self.b.coords[0]]
-        y_values = [self.a.coords[1], self.b.coords[1]]
+        x_values = [self.from_point.coords[0], self.to_point.coords[0]]
+        y_values = [self.from_point.coords[1], self.to_point.coords[1]]
 
         # Plots the line
         ax.plot(x_values, y_values, color=colors, linewidth=2)
 
         if is_solved:
             # Computes the midpoint and rotation angle.
-            midpoint = (self.a.coords + self.b.coords) / 2
-            deltas = self.b.coords - self.a.coords
+            midpoint = (self.from_point.coords + self.to_point.coords) / 2
+            deltas = self.to_point.coords - self.from_point.coords
             angle = np.rad2deg(np.arctan2(deltas[1], deltas[0]))
 
             # Plots text if needed
@@ -324,6 +324,7 @@ class TrussMember:
 def extract_points(points):
     """
     Internal function to get the coordinates of the points out of the point class.
+    You should not need to mess with this.
     :param points: list of point classes.
     :return: list of coordinates of the points.
     """
@@ -348,12 +349,12 @@ class Truss:
         # Going through the list of members, add one copy of the point to the list, and update the point class to have an index pointing to the x and y respective indexes.
         # This is what enables the ability to pass in just the members and not the points.
         for mem in self.members:
-            if not mem.a in self.points:
-                self.points.append(mem.a)
-                mem.a.i = 2 * self.points.index(mem.a)
-            if not mem.b in self.points:
-                self.points.append(mem.b)
-                mem.b.i = 2 * self.points.index(mem.b)
+            if not mem.from_point in self.points:
+                self.points.append(mem.from_point)
+                mem.from_point.row_index = 2 * self.points.index(mem.from_point)
+            if not mem.to_point in self.points:
+                self.points.append(mem.to_point)
+                mem.to_point.row_index = 2 * self.points.index(mem.to_point)
 
     def solve(self, print_final=False):
         """
@@ -379,31 +380,31 @@ class Truss:
         # Adds the components of the internal forces to the array A.
         # This only operates on the left half, with each column being a member and each row being an x and y force at a point.
         # The second entry is mirrored because the forces are opposite.
-        for j, mem in enumerate(members):
-            A[mem.a.i:mem.a.i + 2, j] = mem.components
-            A[mem.b.i:mem.b.i + 2, j] = -mem.components
+        for col_index, mem in enumerate(members):
+            A[mem.from_point.row_index:mem.from_point.row_index + 2, col_index] = mem.components
+            A[mem.to_point.row_index:mem.to_point.row_index + 2, col_index] = -mem.components
 
-        # Starts the counter at the right half of A.
+        # Starts the counter at the right half of A, after the members,
         counter = num_members
         for point in points:
             # If there is a constraint than add a 1 to A.
             if point.constraints[0] > 0:
-                A[point.i, counter] = point.constraints[0]
+                A[point.row_index, counter] = point.constraints[0]
                 counter += 1
             if point.constraints[1] > 0:
-                A[point.i + 1, counter] = point.constraints[1]
+                A[point.row_index + 1, counter] = point.constraints[1]
                 counter += 1
 
             # Populates the b array with the forces stored in the point class.
-            b[point.i] = -point.forces[0]
-            b[point.i + 1] = -point.forces[1]
+            b[point.row_index] = -point.forces[0]
+            b[point.row_index + 1] = -point.forces[1]
 
         # Solves the equation
         solved = np.linalg.solve(A, b)
 
         # Populates the members to have the tension
-        for i, mem in enumerate(members):
-            mem.tension = solved[i, 0]
+        for row_index, mem in enumerate(members):
+            mem.tension = solved[row_index, 0]
 
         # Resets the counter from earlier.
         counter = num_members
@@ -416,6 +417,10 @@ class Truss:
                 point.resultants[1] = solved[counter, 0]
                 counter += 1
 
+        # IF YOU WANT TO SEE A AND B, UNCOMMENT BELOW!
+        # print(A)
+        # print(b)
+
         if print_final:
             # If you need it to return the matrix, change this to return solved
             print(solved)
@@ -425,7 +430,7 @@ class Truss:
         Plots the truss system.
         This function DOES NOT call self.solve().
         Make sure to call self.solve() if is_solved is True.
-        :param is_solved: boolean of whether to do the solved or unsolved version.
+        :param is_solved: boolean of whether to do the solved or unsolved version, default is False.
         """
         # This is entirely because I do not want to redo all the instances of points and members to have self in front of them.
         points = self.points
@@ -456,4 +461,4 @@ class Truss:
 
         # Does some final formatting and plots.
         plt.axis('equal')
-        plt.show()
+        plt.show()    
