@@ -184,7 +184,7 @@ def line(a,b):
 
 
 class TrussPoint:
-    def __init__(self, coords, constraints, forces):
+    def __init__(self, coords, constraints=[0,0], forces=[0,0]):
         """
         Point class to store all the different points in the truss.
         Format is TrussPoint(coords=[x,y], constraints=[x,y], forces=[x,y])
@@ -201,6 +201,10 @@ class TrussPoint:
 
         # Class variable that keeps track of which rows in the solving matrix belong to it.
         self.row_index = None
+
+    def __sub__ (self, other):
+        # This is entirely abusive notation, but it will definitely save time.
+        return TrussMember(self, other)
 
     def plot_horizontal(self, ax, maxload, magnitude, color):
         """
@@ -461,4 +465,4 @@ class Truss:
 
         # Does some final formatting and plots.
         plt.axis('equal')
-        plt.show()    
+        plt.show()
