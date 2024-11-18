@@ -182,6 +182,7 @@ def line(a,b):
     """
     return b - a
 
+# BEGIN TRUSS CODE!
 
 class TrussPoint:
     def __init__(self, coords, constraints=[0,0], forces=[0,0]):
@@ -197,7 +198,7 @@ class TrussPoint:
         self.forces = np.array(forces)
 
         # Class variable to store the resultant force if needed.
-        self.resultants = np.array([0, 0])
+        self.resultants = np.array([None, None])
 
         # Class variable that keeps track of which rows in the solving matrix belong to it.
         self.row_index = None
@@ -360,13 +361,13 @@ class Truss:
                 self.points.append(mem.to_point)
                 mem.to_point.row_index = 2 * self.points.index(mem.to_point)
 
-    def solve(self, print_final=False):
+    def solve(self, return_all=False):
         """
         Function to solve the truss.
         I may add options to display intermediate results at a later date.
         There is no output by default as each member and point has it's values updated instead.
         If you need the output, set print_final=True.
-        :param print_final: prints the final output if needed, default is False.
+        :param return_all: return A, b, solutions if needed, default is False.
         """
         # This is entirely because I do not want to redo all the instances of points and members to have self in front of them.
         points = self.points
@@ -421,13 +422,10 @@ class Truss:
                 point.resultants[1] = solved[counter, 0]
                 counter += 1
 
-        # IF YOU WANT TO SEE A AND B, UNCOMMENT BELOW!
-        # print(A)
-        # print(b)
 
-        if print_final:
+        if return_all:
             # If you need it to return the matrix, change this to return solved
-            print(solved)
+            return A, b, solved
 
     def plot(self, is_solved=False):
         """
