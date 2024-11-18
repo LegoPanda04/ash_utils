@@ -204,7 +204,16 @@ class TrussPoint:
         self.row_index = None
 
     def __sub__ (self, other):
-        # This is entirely abusive notation, but it will definitely save time.
+        """
+        This is entirely abusive notation, but it will definitely save time.
+        To clarify what this does, you can define functions like add, subtract, multiply, etc. for classes.
+        So doing A - B will give a truss member from A to B.
+        This is not how it this is supposed to work, as normally you would return another point or something
+        with coordinates of A - B.
+        :param self: first point
+        :param other: second point
+        :return: TrussMember from self to other
+        """
         return TrussMember(self, other)
 
     def plot_horizontal(self, ax, maxload, magnitude, color):
@@ -361,6 +370,20 @@ class Truss:
                 self.points.append(mem.to_point)
                 mem.to_point.row_index = 2 * self.points.index(mem.to_point)
 
+    def check_det(self):
+        """
+        Checks for deterministic truss.
+        :return: True if truss is deterministic
+        """
+        num_points = len(self.points)
+        num_members = len(self.members)
+        num_reactions = np.count_nonzero([point.constraints for point in self.points])
+        if num_members + num_reactions < 2 * num_points:
+            raise Exception('System is unstable!')
+        if num_members + num_reactions > 2 * num_points:
+            raise Exception('System is indeterminate!')
+        return True
+
     def solve(self, return_all=False):
         """
         Function to solve the truss.
@@ -369,6 +392,9 @@ class Truss:
         If you need the output, set print_final=True.
         :param return_all: return A, b, solutions if needed, default is False.
         """
+        # Check for determinacy.
+        self.check_det()
+
         # This is entirely because I do not want to redo all the instances of points and members to have self in front of them.
         points = self.points
         members = self.members
@@ -405,7 +431,11 @@ class Truss:
             b[point.row_index + 1] = -point.forces[1]
 
         # Solves the equation
-        solved = np.linalg.solve(A, b)
+        try:
+            solved = np.linalg.solve(A, b)
+        # It is possible to have a system that passes the determinacy test but is not possible to solve.
+        except np.linalg.LinAlgError:
+            raise Exception('While the system passes the determinacy test, it can not be solved.')
 
         # Populates the members to have the tension
         for row_index, mem in enumerate(members):
