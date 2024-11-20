@@ -360,6 +360,10 @@ class Truss:
         # Creates an empty list of points
         self.points = []
 
+        # Creates empty variables A and b
+        self.A = None
+        self.b = None
+
         # Going through the list of members, add one copy of the point to the list, and update the point class to have an index pointing to the x and y respective indexes.
         # This is what enables the ability to pass in just the members and not the points.
         for mem in self.members:
@@ -384,13 +388,11 @@ class Truss:
             raise Exception('System is indeterminate!')
         return True
 
-    def solve(self, return_all=False):
+    def solve(self):
         """
         Function to solve the truss.
         I may add options to display intermediate results at a later date.
         There is no output by default as each member and point has it's values updated instead.
-        If you need the output, set print_final=True.
-        :param return_all: return A, b, solutions if needed, default is False.
         """
         # Check for determinacy.
         self.check_det()
@@ -430,6 +432,11 @@ class Truss:
             b[point.row_index] = -point.forces[0]
             b[point.row_index + 1] = -point.forces[1]
 
+        # Stores A and b into class variables.
+        # Again because I don't want to rename all to self.
+        self.A = A
+        self.b = b
+
         # Solves the equation
         try:
             solved = np.linalg.solve(A, b)
@@ -451,11 +458,6 @@ class Truss:
             if point.constraints[1] > 0:
                 point.resultants[1] = solved[counter, 0]
                 counter += 1
-
-
-        if return_all:
-            # If you need it to return the matrix, change this to return solved
-            return A, b, solved
 
     def plot(self, is_solved=False):
         """
